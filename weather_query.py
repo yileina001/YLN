@@ -9,15 +9,26 @@ import json
 import sys
 
 # ============================ API说明 ============================
-# 和风天气API使用说明:
-# 1. 免费版申请地址: https://dev.qweather.com/
-# 2. 注册账号 → 进入控制台 → 创建应用 → 获取API Key
-# 3. 免费版限制: 
-#    - 每天可调用1000次
-#    - 支持全球15万个城市
-#    - 并发限制: 每秒10次
-#    - 支持实时天气、7天预报等
+# 【和风天气API】- 推荐使用
+# 免费版申请地址: https://dev.qweather.com/
+# 申请流程:
+#   1. 访问官网注册账号
+#   2. 进入「控制台」→「应用管理」→「创建应用」
+#   3. 选择「Web API」类型，获取API Key
+# 免费版限制:
+#   - 每天可调用1000次
+#   - 支持全球15万个城市
+#   - 并发限制: 每秒10次
+#   - 支持实时天气、7天预报、空气质量等
+#
+# 【中国天气网备用接口】- 无需API Key
+#   - 仅支持预定义的15个城市
+#   - 接口稳定性有限，仅供临时使用
 # =================================================================
+
+# 使用前准备:
+# 1. 安装依赖: pip install requests 或 py -m pip install requests
+# 2. (可选) 将API_KEY替换为你申请的和风天气API Key================================================
 
 # 请在这里填写你申请的API Key
 API_KEY = "YOUR_API_KEY_HERE"  # 替换为你的实际API Key
@@ -109,7 +120,6 @@ def get_weather_backup(city_name):
     参数: city_name - 城市名称
     返回: 天气数据字典 或 None
     """
-    # 先尝试通过预定义列表获取城市代码
     city_code = get_city_code(city_name)
     if not city_code:
         print(f"❌ 暂不支持查询 '{city_name}' 的天气信息")
@@ -118,7 +128,9 @@ def get_weather_backup(city_name):
     
     url = f"http://www.weather.com.cn/data/sk/{city_code}.html"
     try:
-        response = requests.get(url, timeout=10)
+        response = requests.get(url, timeout=10, headers={
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        })
         response.encoding = 'utf-8'
         data = response.json()
         
@@ -128,10 +140,20 @@ def get_weather_backup(city_name):
                 "temp": info.get("temp", "N/A"),
                 "weather": "请使用和风天气API获取详细天气",
                 "wind_dir": info.get("WD", "N/A"),
-                "wind_scale": info.get("WS", "N/A")
+                "wind_scale": info.get("WS", "N/A").replace('级', '')
             }
+        else:
+            print(f"❌ 备用接口数据格式异常")
+            print("   建议申请和风天气API Key以获得更稳定的服务")
+    except requests.exceptions.ConnectionError:
+        print("❌ 网络连接失败，请检查网络设置")
+    except requests.exceptions.Timeout:
+        print("❌ 请求超时，请稍后重试")
+    except json.JSONDecodeError:
+        print("❌ 备用接口返回数据格式错误")
+        print("   建议申请和风天气API Key以获得更稳定的服务")
     except Exception as e:
-        print(f"❌ 备用接口查询失败: {str(e)}")
+        print(f"❌ 备用接口查询失败: {type(e).__name__}")
     return None
 
 def print_weather_info(city, weather_data):
